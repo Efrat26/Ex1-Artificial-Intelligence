@@ -1,6 +1,17 @@
 import sys
 import collections
 #Efrat Sofer 304855125
+class Node:
+    def __init__(self):
+        visited = 0
+        state = ''
+        parent = None
+    def setVisited(self, value):
+        self.visited = value
+    def setState(self, s):
+        self.state = s
+    def setParent(self, p):
+        self.parent = p
 
 def getGoalState(board_size):
     result = ''
@@ -69,13 +80,14 @@ def getPath(solution_list):
             path.append('D')
     return path
 
-def DLS(src, target, limit, board_size, solution_list):
+def DLS(src, target, limit, board_size, solution_list, vertex_counter):
     if src == target:
         return True
     if limit <= 0:
         return False
     neighbors = getNeighbors(src, board_size)
     for n in neighbors:
+        vertex_counter += 1
         if DLS(n, target, limit - 1, board_size, solution_list):
             solution_list.append(n)
             return True
@@ -85,24 +97,51 @@ def DLS(src, target, limit, board_size, solution_list):
 def IDDFS(src, target, max_depth, board_size):
     for limit in range(0, max_depth):
         solution = [src]
+        vertex_counter = 0
         print 'begin depth: ' + str(limit)
-        if DLS(src, target, limit, board_size, solution) == True:
+        if DLS(src, target, limit, board_size, solution, vertex_counter) == True:
             path = getPath(solution)
-            return path
+            return [path, vertex_counter, limit]
     return []
 
+def getPathFromLastNodeBfs(last_node):
+    result = [last_node.state]
+    stop = False
+    prev = last_node
+    while stop == False:
+        vertex = prev.parent
+        if vertex != None:
+            result.append(vertex.state)
+            prev = vertex
+        else:
+            stop = True
+    result.reverse()
+    return result
+
+
+
 def BFS(board_size, root, goal):
-    queue = collections.deque([root])
+    root_node = Node()
+    root_node.setState(root)
+    root_node.setParent(None)
+    queue = collections.deque([root_node])
     number_of_verteces_checked = 0
     while queue:
         vertex = queue.popleft()
+        #vertex_node = Node()
+        #vertex_node.setState(vertex)
         number_of_verteces_checked += 1
-        if vertex == goal:
+        if vertex.state == goal:
             print 'found solution for BFS! number of verteces checked: ' + str(number_of_verteces_checked)
-            return True
-        neighbors = getNeighbors(vertex, board_size)
+            path_nodes = getPathFromLastNodeBfs(vertex)
+            path = getPath(path_nodes)
+            return [path, number_of_verteces_checked, 0]
+        neighbors = getNeighbors(vertex.state, board_size)
         for n in neighbors:
-            queue.append(n)
+            n_node = Node()
+            n_node.setState(n)
+            n_node.setParent(vertex)
+            queue.append(n_node)
 
 def AStar(board):
     print 'AStar'
@@ -122,17 +161,24 @@ def main():
         return
     initial_position = lines[2]
     goal_state = getGoalState(board_size)
-
+    solution = []
     if lines[0] == '1':
-        IDDFS(initial_position, goal_state, board_size, board_size)
+        solution = IDDFS(initial_position, goal_state, board_size, board_size)
         #IDS(initial_position, goal_state, board_size)
     elif lines[0] == '2':
-        BFS(board_size, initial_position, goal_state)
+        solution = BFS(board_size, initial_position, goal_state)
     elif lines[0] == '3':
-        AStar(initial_position)
+        solution = AStar(initial_position)
     else:
         print 'algorithm number should be integer between 1 to 3'
         return
+    if len(solution) == 3:
+        path = solution[0]
+        string_path = ''
+        for i in range(0, len(path)):
+            string_path += path[i]
+        print string_path + ' ' + str(solution[1]) + ' ' + str(solution[2])
+
 
 
 if __name__ == "__main__":
