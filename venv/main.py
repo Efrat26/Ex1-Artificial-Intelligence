@@ -8,12 +8,21 @@ class Node:
         visited = 0
         state = ''
         parent = None
+        self.g = 0
+        self.h = 0
     def setVisited(self, value):
         self.visited = value
     def setState(self, s):
         self.state = s
     def setParent(self, p):
         self.parent = p
+    def setG(self, w):
+        self.g += w
+    def setH(self, value):
+        #self.h = 0
+        self.h = value
+    #def setInitialG(self):
+        #self.g = 0
 
 ####### pririty queue for A* ##########
 '''
@@ -21,7 +30,7 @@ A simple implementation of Priority Queue using Queue.
 i used the code from here:
 https://www.geeksforgeeks.org/priority-queue-in-python/
 '''
-class PriorityQueue(object):
+class PriorityQueue(Node):
     def __init__(self):
         self.queue = []
 
@@ -40,14 +49,18 @@ class PriorityQueue(object):
 
         # for popping an element based on Priority
 
-    def delete(self):
+    def removeFront(self):
         try:
-            max = 0
+            min_ind = 0
+            min_value = 0
+            g_plus_h = 0
             for i in range(len(self.queue)):
-                if self.queue[i] > self.queue[max]:
-                    max = i
-            item = self.queue[max]
-            del self.queue[max]
+                g_plus_h = self.queue[i].g + self.queue[i].h
+                if g_plus_h < min_value:
+                    min_value = g_plus_h
+                    min_ind = i
+            item = self.queue[min_ind]
+            del self.queue[min_ind]
             return item
         except IndexError:
             print()
@@ -57,7 +70,7 @@ class PriorityQueue(object):
 ####### general methods ##########
 def getGoalState(board_size):
     result = ''
-    for i in range(1,board_size*board_size+1):
+    for i in range(1, board_size*board_size+1):
         if i != (board_size*board_size):
             result += str(i) + '-'
         else:
@@ -154,17 +167,20 @@ def IDDFS(src, target, max_depth, board_size):
 #######BFS##########
 def getPathFromLastNodeBfs(last_node):
     result = [last_node.state]
+    result_nodes = [last_node]
     stop = False
     prev = last_node
     while stop == False:
         vertex = prev.parent
         if vertex != None:
             result.append(vertex.state)
+            result_nodes.append(vertex)
             prev = vertex
         else:
             stop = True
     result.reverse()
-    return result
+    result_nodes.reverse()
+    return [result, result_nodes]
 
 
 
@@ -181,8 +197,8 @@ def BFS(board_size, root, goal):
         number_of_verteces_checked += 1
         if vertex.state == goal:
             print ('found solution for BFS! number of verteces checked: ' + str(number_of_verteces_checked))
-            path_nodes = getPathFromLastNodeBfs(vertex)
-            path = getPath(path_nodes)
+            [path_states, path_nodes] = getPathFromLastNodeBfs(vertex)
+            path = getPath(path_states)
             return [path, number_of_verteces_checked, 0]
         neighbors = getNeighbors(vertex.state, board_size)
         for n in neighbors:
@@ -193,16 +209,14 @@ def BFS(board_size, root, goal):
 
 
 ####### A* ##########
-def getRowAndColIndInMatrix(state, element):
+def getRowAndColIndInMatrix(state, board_size, element):
     splitted_state = state.split('-')
-    board_size = len(splitted_state)
-    board_size_sqrt = board_size ** (1/2.0)
     index_of_element = splitted_state.index(element)
-    col_index = index_of_element%board_size_sqrt
+    col_index = index_of_element%board_size
     row_index = 0
     counter_top = -1
     for i in range(0, board_size):
-        counter_top += board_size_sqrt
+        counter_top += board_size
         if index_of_element <= counter_top:
             row_index = i
             break
@@ -210,15 +224,58 @@ def getRowAndColIndInMatrix(state, element):
 
 
 
-def calculateHeuristic(state, goal, element):
-    [row_s, col_s] = getRowAndColIndInMatrix(state, element)
-    [row_g, col_g] = getRowAndColIndInMatrix(goal, element)
-    result = abs(row_s - row_g) + abs(col_s - col_g)
-    return result
+def calculateHeuristic(state, goal, board_size):
+    splitted_state = state.split('-')
+    manhattan_dist = 0
+    for i in range(0, len(splitted_state)):
+        [row_s, col_s] = getRowAndColIndInMatrix(state, board_size, splitted_state[i])
+        [row_g, col_g] = getRowAndColIndInMatrix(goal, board_size, splitted_state[i])
+        manhattan_dist += abs(row_s - row_g) + abs(col_s - col_g)
 
-def AStar(intial, goal):
-    calculateHeuristic(intial, goal)
-    print ('AStar')
+    return manhattan_dist
+
+def calculatePathCost(path_nodes):
+    return len(path_nodes)
+
+def AStar(initial, goal, board_size):
+    num_vertex_checked = 0
+    node_initial = Node()
+    node_initial.setState(initial)
+    node_initial.setParent(None)
+    #node_initial.setInitialG()
+    evaluated_heuristic = calculateHeuristic(initial, goal, board_size)
+    node_initial.setH(evaluated_heuristic)
+    node_goal = Node()
+    node_goal.setState(goal)
+    open_list = PriorityQueue()
+    open_list.insert(node_initial)
+    while not open_list.isEmpty():
+        node = open_list.removeFront()
+        num_vertex_checked += 1
+        if node.state == goal:
+            [path_states, path_nodes] = getPathFromLastNodeBfs(node)
+            path = getPath(path_states)
+            cost = calculatePathCost(path_nodes)
+            return [path, num_vertex_checked, cost]
+        neighbors = getNeighbors(node.state, board_size)
+        for n in neighbors:
+            n_node = Node()
+            n_node.setState(n)
+            n_node.setParent(node)
+            #n_node.setInitialG()
+            n_node.setG(1)
+            evaluated_heuristic = calculateHeuristic(n, goal, board_size)
+            n_node.setH(evaluated_heuristic)
+            open_list.insert(n_node)
+    return False
+
+def operateAStar(initial, goal, board_size):
+    solution = AStar(initial, goal, board_size)
+    if len(solution) > 0:
+        print('found solution in A*!!')
+        return solution
+    else:
+        return []
 
 
 
@@ -244,7 +301,7 @@ def main():
     elif lines[0] == '2':
         solution = BFS(board_size, initial_position, goal_state)
     elif lines[0] == '3':
-        solution = AStar(initial_position, goal_state)
+        solution = operateAStar(initial_position, goal_state, board_size)
     else:
         print ('algorithm number should be integer between 1 to 3')
         return
