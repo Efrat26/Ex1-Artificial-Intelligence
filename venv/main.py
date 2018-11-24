@@ -13,6 +13,7 @@ class Node:
         self.parent = None
         self.g = 0
         self.h = 0
+        self.depth = 0
     def setVisited(self, value):
         self.visited = value
     def setState(self, s):
@@ -23,8 +24,8 @@ class Node:
         self.g += w
     def setH(self, value):
         self.h = value
-    #def setInitialG(self):
-        #self.g = 0
+    def setDepth(self, value):
+        self.depth = value
 
 ####### pririty queue for A* ##########
 '''
@@ -110,31 +111,38 @@ finds the neighbor values of a given node
 '''
 def getNeighbors(position, board_size):
     neighbors = []
+    [row, col] = getRowAndColIndInMatrix(position, board_size, '0')
     splitted_position = position.split('-')
     zero_index = splitted_position.index('0')
     # top neighbor
+    if zero_index + board_size <= board_size*board_size - 1:
+        neighbors.insert(len(neighbors), splitted_position[zero_index + board_size])
+    # bottom neighbor
     if zero_index - board_size > 0:
         neighbors.insert(len(neighbors), splitted_position[zero_index - board_size])
-    # bottom neighbor
-    if zero_index + board_size < board_size*board_size - 1:
-        neighbors.insert(len(neighbors), splitted_position[zero_index + board_size])
-    # right neighbor
-    if zero_index < board_size * board_size - 1:
+    # left neighbor (right neighbor can move to the left into the empty position)
+    if col < board_size - 1:
         neighbors.insert(len(neighbors), splitted_position[zero_index + 1])
-    # left neighbor
-    if zero_index > 0:
+    # right neighbor (left neighbor can move to the right into the empty position)
+    if col > 0:
         neighbors.insert(len(neighbors), splitted_position[zero_index - 1])
+
+
+
+
+
 
     return createPositionsFromNeighbors(neighbors, position)
 
 ''' 
 returns the path moves (U, D, L, R)
 '''
-def getPath(solution_list):
+def getPath(solution_list, board_size):
     if len(solution_list) < 2:
         return
     path = []
-    board_size = len(solution_list[0].split('-'))
+    #board_size = len(solution_list[0].split('-'))
+    #board_size = len(solution_list[0].split('-'))
     for i in range(1, len(solution_list)):
         next = solution_list[i].split('-')
         prev = solution_list[i-1].split('-')
@@ -180,34 +188,48 @@ def DLS(src, target, limit, board_size, solution_list, neighbors_dict):
 
 
 
-def DFS(start, target, depth, neighbors_dict, board_size, nodes_path):
-    open_list = collections.deque()
+def DFS(start, target, max_depth, neighbors_dict, board_size, nodes_path):
+    depth = 0
+    open_list = []
+    start.setDepth(depth)
     open_list.append(start)
     current = None
     stop = False
     while not stop:
-        current = open_list.popleft()
+        if len(open_list) == 0:
+            return [False]
+        current = open_list.pop()
         global vertex_counter_ids
         vertex_counter_ids += 1
         if current.state == target.state:
-            nodes_path = getPathFromLastNodeBfs(current)
-            stop = True
-            return True
-        if current is None or depth <= 0:
-            stop = True
-            return False
-        if current.state in neighbors_dict:
-            neighbors = neighbors_dict[current.state]
-        else:
+            result = []
+            result = getPathFromLastNodeBfs(current)
+            result.insert(0, [True])
+            #stop = True
+            return result
+        #if current is None or depth <= 0:
+         #   stop = True
+          #  return False
+        if current.depth + 1 <= max_depth:
             neighbors = getNeighbors(current.state, board_size)
-            neighbors_dict[current.state] = neighbors
-        for n in neighbors:
-            n_node = Node()
-            n_node.setState(n)
-            n_node.setParent(current)
-            open_list.append(n_node)
-        depth -= 1
-    return False
+            '''
+            if current.state in neighbors_dict:
+                neighbors = neighbors_dict[current.state]
+            else:
+                neighbors = getNeighbors(current.state, board_size)
+                neighbors_dict[current.state] = neighbors
+                '''
+            neighbors.reverse()
+            for n in neighbors:
+                n_node = Node()
+                n_node.setState(n)
+                n_node.setParent(current)
+                n_node.setDepth(current.depth + 1)
+                open_list.append(n_node)
+        #depth -= 1
+    if max_depth == 4:
+        print('hello')
+    return [False]
 
 
 ''' 
@@ -225,11 +247,10 @@ def IDDFS(src, target, board_size):
         global vertex_counter_ids
         vertex_counter_ids = 0
         print ('begin depth: ' + str(limit))
-        if DFS(node_src, node_target, limit, n_dict, board_size, solution):
-        #if DLS(node_src, node_target, limit, board_size, solution, n_dict):
-        #if DLS(src, target, limit, board_size, solution, vertex_num, solution):
-            path = getPath(solution)
-           # path2 = getPathFromLastNodeBfs(solution)
+        result = DFS(node_src, node_target, limit, n_dict, board_size, solution)
+        if result[0]:
+            print ('found solution in IDS')
+            path = getPath(result[1], board_size)
             return [path, vertex_counter_ids, limit]
     return []
 
