@@ -1,7 +1,6 @@
 import sys
 import collections
 #Efrat Sofer 304855125
-vertex_counter_ids = 0
 ####### node class ##########
 ''' 
 describes a node in a graph, contains attributes: state, parent node, visited boolean, h & g for the A* algorithm 
@@ -115,10 +114,10 @@ def getNeighbors(position, board_size):
     splitted_position = position.split('-')
     zero_index = splitted_position.index('0')
     # top neighbor
-    if zero_index + board_size <= board_size*board_size - 1:
+    if row < board_size-1:
         neighbors.insert(len(neighbors), splitted_position[zero_index + board_size])
     # bottom neighbor
-    if zero_index - board_size > 0:
+    if row > 0:
         neighbors.insert(len(neighbors), splitted_position[zero_index - board_size])
     # left neighbor (right neighbor can move to the left into the empty position)
     if col < board_size - 1:
@@ -126,6 +125,7 @@ def getNeighbors(position, board_size):
     # right neighbor (left neighbor can move to the right into the empty position)
     if col > 0:
         neighbors.insert(len(neighbors), splitted_position[zero_index - 1])
+
 
 
 
@@ -141,8 +141,6 @@ def getPath(solution_list, board_size):
     if len(solution_list) < 2:
         return
     path = []
-    #board_size = len(solution_list[0].split('-'))
-    #board_size = len(solution_list[0].split('-'))
     for i in range(1, len(solution_list)):
         next = solution_list[i].split('-')
         prev = solution_list[i-1].split('-')
@@ -164,31 +162,7 @@ def getPath(solution_list, board_size):
 the recursive function of IDS
 when the goal is found, it adds the node to the solution list
 '''
-def DLS(src, target, limit, board_size, solution_list, neighbors_dict):
-    if src.state == target.state:
-        return True
-    if limit <= 0:
-        return False
-    if src in neighbors_dict:
-        neighbors = neighbors_dict[src]
-    else:
-        neighbors = getNeighbors(src.state, board_size)
-        neighbors_dict[src] = neighbors
-    for n in neighbors:
-        global vertex_counter_ids
-        vertex_counter_ids += 1
-        #vertex_counter[0] = vertex_counter[0] + 1
-        n_node = Node()
-        n_node.setState(n)
-        n_node.setParent(src)
-        if DLS(n_node, target, limit - 1, board_size, solution_list, neighbors_dict):
-            solution_list.append(n)
-            return True
-    return False
-
-
-
-def DFS(start, target, max_depth, neighbors_dict, board_size, nodes_path):
+def DFS(start, target, max_depth, neighbors_dict, board_size, vertex_counter_ids):
     depth = 0
     open_list = []
     start.setDepth(depth)
@@ -199,26 +173,15 @@ def DFS(start, target, max_depth, neighbors_dict, board_size, nodes_path):
         if len(open_list) == 0:
             return [False]
         current = open_list.pop()
-        global vertex_counter_ids
         vertex_counter_ids += 1
         if current.state == target.state:
             result = []
             result = getPathFromLastNodeBfs(current)
             result.insert(0, [True])
-            #stop = True
+            result.append(vertex_counter_ids)
             return result
-        #if current is None or depth <= 0:
-         #   stop = True
-          #  return False
         if current.depth + 1 <= max_depth:
             neighbors = getNeighbors(current.state, board_size)
-            '''
-            if current.state in neighbors_dict:
-                neighbors = neighbors_dict[current.state]
-            else:
-                neighbors = getNeighbors(current.state, board_size)
-                neighbors_dict[current.state] = neighbors
-                '''
             neighbors.reverse()
             for n in neighbors:
                 n_node = Node()
@@ -226,9 +189,6 @@ def DFS(start, target, max_depth, neighbors_dict, board_size, nodes_path):
                 n_node.setParent(current)
                 n_node.setDepth(current.depth + 1)
                 open_list.append(n_node)
-        #depth -= 1
-    if max_depth == 4:
-        print('hello')
     return [False]
 
 
@@ -244,14 +204,13 @@ def IDDFS(src, target, board_size):
         node_target = Node()
         node_target.setState(target)
         solution = []
-        global vertex_counter_ids
         vertex_counter_ids = 0
         print ('begin depth: ' + str(limit))
-        result = DFS(node_src, node_target, limit, n_dict, board_size, solution)
+        result = DFS(node_src, node_target, limit, n_dict, board_size, vertex_counter_ids)
         if result[0]:
             print ('found solution in IDS')
             path = getPath(result[1], board_size)
-            return [path, vertex_counter_ids, limit]
+            return [path, result[-1], limit]
     return []
 
 
