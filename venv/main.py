@@ -1,7 +1,7 @@
 import sys
 import collections
 #Efrat Sofer 304855125
-
+vertex_counter_ids = 0
 ####### node class ##########
 ''' 
 describes a node in a graph, contains attributes: state, parent node, visited boolean, h & g for the A* algorithm 
@@ -134,6 +134,7 @@ def getPath(solution_list):
     if len(solution_list) < 2:
         return
     path = []
+    board_size = len(solution_list[0].split('-'))
     for i in range(1, len(solution_list)):
         next = solution_list[i].split('-')
         prev = solution_list[i-1].split('-')
@@ -143,9 +144,9 @@ def getPath(solution_list):
             path.append('L')
         elif zero_ind_next - zero_ind_prev == -1:
             path.append('R')
-        elif zero_ind_next - zero_ind_prev == 3:
+        elif zero_ind_next - zero_ind_prev == board_size:
             path.append('U')
-        elif zero_ind_next - zero_ind_prev == -3:
+        elif zero_ind_next - zero_ind_prev == -board_size:
             path.append('D')
     return path
 
@@ -155,32 +156,81 @@ def getPath(solution_list):
 the recursive function of IDS
 when the goal is found, it adds the node to the solution list
 '''
-def DLS(src, target, limit, board_size, solution_list, vertex_counter, solution):
-    if src == target:
+def DLS(src, target, limit, board_size, solution_list, neighbors_dict):
+    if src.state == target.state:
         return True
     if limit <= 0:
         return False
-    neighbors = getNeighbors(src, board_size)
+    if src in neighbors_dict:
+        neighbors = neighbors_dict[src]
+    else:
+        neighbors = getNeighbors(src.state, board_size)
+        neighbors_dict[src] = neighbors
     for n in neighbors:
-        vertex_counter[0] = vertex_counter[0] + 1
-        if DLS(n, target, limit - 1, board_size, solution_list, vertex_counter,  solution):
+        global vertex_counter_ids
+        vertex_counter_ids += 1
+        #vertex_counter[0] = vertex_counter[0] + 1
+        n_node = Node()
+        n_node.setState(n)
+        n_node.setParent(src)
+        if DLS(n_node, target, limit - 1, board_size, solution_list, neighbors_dict):
             solution_list.append(n)
             return True
     return False
 
+
+
+def DFS(start, target, depth, neighbors_dict, board_size, nodes_path):
+    open_list = collections.deque()
+    open_list.append(start)
+    current = None
+    stop = False
+    while not stop:
+        current = open_list.popleft()
+        global vertex_counter_ids
+        vertex_counter_ids += 1
+        if current.state == target.state:
+            nodes_path = getPathFromLastNodeBfs(current)
+            stop = True
+            return True
+        if current is None or depth <= 0:
+            stop = True
+            return False
+        if current.state in neighbors_dict:
+            neighbors = neighbors_dict[current.state]
+        else:
+            neighbors = getNeighbors(current.state, board_size)
+            neighbors_dict[current.state] = neighbors
+        for n in neighbors:
+            n_node = Node()
+            n_node.setState(n)
+            n_node.setParent(current)
+            open_list.append(n_node)
+        depth -= 1
+    return False
+
+
 ''' 
 the function that calls the DLS function with a given depth
 '''
-def IDDFS(src, target, max_depth, board_size):
-    for limit in range(0, max_depth):
-        solution = [src]
-        vertex_num = []
-        vertex_num.append(1)
-        #vertex_counter = 0
+def IDDFS(src, target, board_size):
+    n_dict = {}
+    for limit in range(0, 10000000):
+        node_src = Node()
+        node_src.setParent(None)
+        node_src.setState(src)
+        node_target = Node()
+        node_target.setState(target)
+        solution = []
+        global vertex_counter_ids
+        vertex_counter_ids = 0
         print ('begin depth: ' + str(limit))
-        if DLS(src, target, limit, board_size, solution, vertex_num, solution):
+        if DFS(node_src, node_target, limit, n_dict, board_size, solution):
+        #if DLS(node_src, node_target, limit, board_size, solution, n_dict):
+        #if DLS(src, target, limit, board_size, solution, vertex_num, solution):
             path = getPath(solution)
-            return [path, vertex_num[0], limit]
+           # path2 = getPathFromLastNodeBfs(solution)
+            return [path, vertex_counter_ids, limit]
     return []
 
 
@@ -341,7 +391,7 @@ def main():
     goal_state = getGoalState(board_size)
     solution = []
     if lines[0] == '1':
-        solution = IDDFS(initial_position, goal_state, board_size, board_size)
+        solution = IDDFS(initial_position, goal_state, board_size)
         #IDS(initial_position, goal_state, board_size)
     elif lines[0] == '2':
         solution = BFS(board_size, initial_position, goal_state)
