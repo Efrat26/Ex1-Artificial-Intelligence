@@ -55,7 +55,7 @@ class PriorityQueue(Node):
     def removeFront(self):
         try:
             min_ind = 0
-            min_value = 0
+            min_value = self.queue[0].g + self.queue[0].h
             g_plus_h = 0
             for i in range(len(self.queue)):
                 g_plus_h = self.queue[i].g + self.queue[i].h
@@ -125,12 +125,6 @@ def getNeighbors(position, board_size):
     # right neighbor (left neighbor can move to the right into the empty position)
     if col > 0:
         neighbors.insert(len(neighbors), splitted_position[zero_index - 1])
-
-
-
-
-
-
 
     return createPositionsFromNeighbors(neighbors, position)
 
@@ -253,7 +247,7 @@ def BFS(board_size, root, goal):
         if vertex.state == goal:
             print ('found solution for BFS! number of verteces checked: ' + str(number_of_verteces_checked))
             [path_states, path_nodes] = getPathFromLastNodeBfs(vertex)
-            path = getPath(path_states)
+            path = getPath(path_states, board_size)
             return [path, number_of_verteces_checked, 0]
         neighbors = getNeighbors(vertex.state, board_size)
         for n in neighbors:
@@ -309,33 +303,46 @@ def calculatePathCost(path_nodes):
 A star main function implementation
 '''
 def AStar(initial, goal, board_size):
+    neighbors_dict = {}
+    heuristic_dict = {}
+    depth = 0
     num_vertex_checked = 0
     node_initial = Node()
     node_initial.setState(initial)
     node_initial.setParent(None)
     #node_initial.setInitialG()
     evaluated_heuristic = calculateHeuristic(initial, goal, board_size)
+    heuristic_dict[initial] = evaluated_heuristic
     node_initial.setH(evaluated_heuristic)
-    node_goal = Node()
-    node_goal.setState(goal)
+    node_initial.setG(depth)
+    #node_goal = Node()
+    #node_goal.setState(goal)
     open_list = PriorityQueue()
     open_list.insert(node_initial)
     while not open_list.isEmpty():
-        node = open_list.removeFront()
+        current_node = open_list.removeFront()
         num_vertex_checked += 1
-        if node.state == goal:
-            [path_states, path_nodes] = getPathFromLastNodeBfs(node)
-            path = getPath(path_states)
+        if current_node.state == goal:
+            [path_states, path_nodes] = getPathFromLastNodeBfs(current_node)
+            path = getPath(path_states, board_size)
             cost = calculatePathCost(path_nodes)
             return [path, num_vertex_checked, cost]
-        neighbors = getNeighbors(node.state, board_size)
+        if current_node.state in neighbors_dict:
+            neighbors = neighbors_dict[current_node.state]
+        else:
+            neighbors = getNeighbors(current_node.state, board_size)
+            neighbors_dict[current_node.state] = neighbors
         for n in neighbors:
             n_node = Node()
             n_node.setState(n)
-            n_node.setParent(node)
+            n_node.setParent(current_node)
             #n_node.setInitialG()
-            n_node.setG(1)
-            evaluated_heuristic = calculateHeuristic(n, goal, board_size)
+            n_node.setG(current_node.g + 1)
+            if n_node.state in heuristic_dict:
+                evaluated_heuristic = heuristic_dict[n_node.state]
+            else:
+                evaluated_heuristic = calculateHeuristic(n, goal, board_size)
+                heuristic_dict[n_node.state] = evaluated_heuristic
             n_node.setH(evaluated_heuristic)
             open_list.insert(n_node)
     return False
@@ -356,11 +363,9 @@ def operateAStar(initial, goal, board_size):
 the main function: reads the input, calls the suitable function & writes to the output
 '''
 def main():
-    if len(sys.argv) != 2:
-        print ('the program needs one input argument')
-        return
+    input_file_name = 'input.txt'
     input_file_name = sys.argv[1]
-    f_input = open(input_file_name, "r")
+    f_input = open(input_file_name, 'r')
     lines = f_input.read().splitlines()
     try:
         board_size = int(lines[1])
